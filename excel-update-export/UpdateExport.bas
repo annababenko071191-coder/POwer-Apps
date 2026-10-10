@@ -25,6 +25,9 @@ Private Const C_YEAR As Long = 17        ' Q  Год
 Private Const C_QUARTER As Long = 18     ' R  Квартал
 Private Const C_NOTE As Long = 19        ' S  Примечание
 Private Const C_LAST As Long = 31        ' AE остання службова колонка
+Private Const TOTAL_ROW As Long = 13     ' рядок Total (підсумки G13, K13)
+Private Const C_SALES25 As Long = 7      ' G  2025 повний
+Private Const C_SALES26 As Long = 11     ' K  2026 всього
 
 ' ----- Налаштування файлу data -----
 ' Колонки data: 1 OWN_ID, 2 Власник, 3 Менеджер клієнта, 4 Сфера діяльності,
@@ -62,7 +65,7 @@ End Sub
 Public Sub RunUpdate(ByVal dataPath As String, ByVal files As Variant)
     Dim calcMode As Long, dataArr As Variant, i As Long
     Dim report As Collection, problems As Collection, status As String
-    Dim backupDir As String
+    Dim backupDir As String, totals As Variant
 
     Set report = New Collection
     Set problems = New Collection
@@ -79,8 +82,9 @@ Public Sub RunUpdate(ByVal dataPath As String, ByVal files As Variant)
     For i = LBound(files) To UBound(files)
         If StrComp(CStr(files(i)), dataPath, vbTextCompare) <> 0 Then
             If Len(backupDir) = 0 Then backupDir = MakeBackupDir(CStr(files(i)))
-            status = ProcessFile(CStr(files(i)), dataArr, backupDir, problems)
-            report.Add Array(FileNameOf(CStr(files(i))), status)
+            totals = Array(Empty, Empty, Empty, Empty)
+            status = ProcessFile(CStr(files(i)), dataArr, backupDir, problems, totals)
+            report.Add Array(FileNameOf(CStr(files(i))), status, totals(0), totals(1), totals(2), totals(3))
         End If
     Next i
 
@@ -117,8 +121,10 @@ Private Function ReadData(ByVal path As String) As Variant
 End Function
 
 ' Оновлює один файл менеджера. Повертає короткий статус для звіту.
+' totals повертає (G13 було, G13 стало, K13 було, K13 стало)
 Private Function ProcessFile(ByVal path As String, dataArr As Variant, _
-                             ByVal backupDir As String, problems As Collection) As String
+                             ByVal backupDir As String, problems As Collection, _
+                             totals As Variant) As String
     Dim wb As Workbook, ws As Worksheet, sh As Worksheet
     Dim lastOld As Long, nOld As Long, nNew As Long, lastNew As Long
     Dim oldArr As Variant, mgr As String, yearV As Variant, quarterV As Variant
@@ -150,6 +156,8 @@ Private Function ProcessFile(ByVal path As String, dataArr As Variant, _
     End If
 
     If ws.FilterMode Then ws.ShowAllData
+    totals(0) = ws.Cells(TOTAL_ROW, C_SALES25).Value
+    totals(2) = ws.Cells(TOTAL_ROW, C_SALES26).Value
     lastOld = ws.Cells(ws.Rows.Count, C_ID).End(xlUp).Row
     nOld = lastOld - FIRST_ROW + 1
     If nOld < 2 Then
@@ -253,6 +261,8 @@ Private Function ProcessFile(ByVal path As String, dataArr As Variant, _
     Next c
 
     Application.Calculate
+    totals(1) = ws.Cells(TOTAL_ROW, C_SALES25).Value
+    totals(3) = ws.Cells(TOTAL_ROW, C_SALES26).Value
     wb.Save
     wb.Close False
 
@@ -363,13 +373,26 @@ Private Sub ShowReport(report As Collection, problems As Collection, ByVal backu
     Set wb = Workbooks.Add
     Set ws = wb.Worksheets(1)
     ws.Name = "Звіт"
-    ws.Range("A1:B1").Value = Array("Файл", "Результат")
+    ws.Range("A1:H1").Value = Array("Файл", "Результат", _
+        "Продажі 2025 (G13) було", "Продажі 2025 (G13) стало", "Різниця 2025", _
+        "Продажі 2026 (K13) було", "Продажі 2026 (K13) стало", "Різниця 2026")
+    ws.Range("A1:H1").Font.Bold = True
     r = 2
     For i = 1 To report.Count
         ws.Cells(r, 1).Value = report(i)(0)
         ws.Cells(r, 2).Value = report(i)(1)
+        If UBound(report(i)) >= 5 Then
+            ws.Cells(r, 3).Value = report(i)(2)
+            ws.Cells(r, 4).Value = report(i)(3)
+            ws.Cells(r, 6).Value = report(i)(4)
+            ws.Cells(r, 7).Value = report(i)(5)
+            If Not IsEmpty(report(i)(3)) Then ws.Cells(r, 5).FormulaR1C1 = "=IFERROR(RC[-1]-RC[-2],"""")"
+            If Not IsEmpty(report(i)(5)) Then ws.Cells(r, 8).FormulaR1C1 = "=IFERROR(RC[-1]-RC[-2],"""")"
+        End If
         r = r + 1
     Next i
+    ws.Range(ws.Cells(2, 3), ws.Cells(r, 8)).NumberFormat = "#,##0.00"
+    ws.Columns("C:H").AutoFit
     r = r + 1
     ws.Cells(r, 1).Value = "Резервні копії: " & backupDir
     r = r + 2
