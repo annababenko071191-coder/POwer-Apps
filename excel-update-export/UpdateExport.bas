@@ -2,43 +2,43 @@ Attribute VB_Name = "UpdateExport"
 Option Explicit
 
 ' =====================================================================
-'  РћРЅРѕРІР»РµРЅРЅСЏ РІРєР»Р°РґРєРё Export_* Сѓ С„Р°Р№Р»Р°С… РјРµРЅРµРґР¶РµСЂС–РІ Р· С„Р°Р№Р»Сѓ data
-'  Р·С– Р·Р±РµСЂРµР¶РµРЅРЅСЏРј С†С–Р»РµР№ (РєРѕР»РѕРЅРєР° O В«Р¦С–Р»СЊ (РІРІС–Рґ)В») С– РїСЂРёРјС–С‚РѕРє (S).
-'  РљРѕР»РѕРЅРєР° N В«РЎСѓРјРјР°В» вЂ” С„РѕСЂРјСѓР»Р°, РІРѕРЅР° РїРµСЂРµСЂР°С…РѕРІСѓС”С‚СЊСЃСЏ СЃР°РјР° Р· РєРѕР»РѕРЅРєРё O.
+'  Оновлення вкладки Export_* у файлах менеджерів з файлу data
+'  зі збереженням цілей (колонка O «Ціль (ввід)») і приміток (S).
+'  Колонка N «Сумма» — формула, вона перераховується сама з колонки O.
 '
-'  Р—Р°РїСѓСЃРє: Alt+F8 -> UpdateExportSheets
-'    1) РѕР±РµСЂС–С‚СЊ С„Р°Р№Р» Р· РЅРѕРІРёРјРё РґР°РЅРёРјРё (data_XX.xlsx)
-'    2) РѕР±РµСЂС–С‚СЊ СѓСЃС– С„Р°Р№Р»Рё РјРµРЅРµРґР¶РµСЂС–РІ (Ctrl+A Сѓ РІС–РєРЅС– РІРёР±РѕСЂСѓ)
-'  РџРµСЂРµРґ Р·РјС–РЅРѕСЋ РєРѕР¶РЅРѕРіРѕ С„Р°Р№Р»Сѓ СЂРѕР±РёС‚СЊСЃСЏ СЂРµР·РµСЂРІРЅР° РєРѕРїС–СЏ Сѓ РїС–РґРїР°РїРєСѓ Backup_*.
+'  Запуск: Alt+F8 -> UpdateExportSheets
+'    1) оберіть файл з новими даними (data_XX.xlsx)
+'    2) оберіть усі файли менеджерів (Ctrl+A у вікні вибору)
+'  Перед зміною кожного файлу робиться резервна копія у підпапку Backup_*.
 ' =====================================================================
 
-' ----- РќР°Р»Р°С€С‚СѓРІР°РЅРЅСЏ РІРєР»Р°РґРєРё Export_* Сѓ С„Р°Р№Р»Р°С… РјРµРЅРµРґР¶РµСЂС–РІ -----
+' ----- Налаштування вкладки Export_* у файлах менеджерів -----
 Private Const EXPORT_PREFIX As String = "Export"
-Private Const FIRST_ROW As Long = 15     ' РїРµСЂС€РёР№ СЂСЏРґРѕРє РґР°РЅРёС… (14 - Р·Р°РіРѕР»РѕРІРєРё)
+Private Const FIRST_ROW As Long = 15     ' перший рядок даних (14 - заголовки)
 Private Const C_ID As Long = 1           ' A  OWN_ID
-Private Const C_OWNER As Long = 2        ' B  Р’Р»Р°СЃРЅРёРє
-Private Const C_KOMPL As Long = 4        ' D  РљРѕРјРїР»РµРєСЃ
-Private Const C_KAT As Long = 6          ' F  РљР°С‚РµРіРѕСЂС–СЏРўР“
-Private Const C_GOAL As Long = 15        ' O  Р¦С–Р»СЊ (РІРІС–Рґ)
-Private Const C_MGR As Long = 16         ' P  РњРµРЅРµРґР¶РµСЂ
-Private Const C_YEAR As Long = 17        ' Q  Р“РѕРґ
-Private Const C_QUARTER As Long = 18     ' R  РљРІР°СЂС‚Р°Р»
-Private Const C_NOTE As Long = 19        ' S  РџСЂРёРјРµС‡Р°РЅРёРµ
-Private Const C_LAST As Long = 31        ' AE РѕСЃС‚Р°РЅРЅСЏ СЃР»СѓР¶Р±РѕРІР° РєРѕР»РѕРЅРєР°
+Private Const C_OWNER As Long = 2        ' B  Власник
+Private Const C_KOMPL As Long = 4        ' D  Комплекс
+Private Const C_KAT As Long = 6          ' F  КатегоріяТГ
+Private Const C_GOAL As Long = 15        ' O  Ціль (ввід)
+Private Const C_MGR As Long = 16         ' P  Менеджер
+Private Const C_YEAR As Long = 17        ' Q  Год
+Private Const C_QUARTER As Long = 18     ' R  Квартал
+Private Const C_NOTE As Long = 19        ' S  Примечание
+Private Const C_LAST As Long = 31        ' AE остання службова колонка
 
-' ----- РќР°Р»Р°С€С‚СѓРІР°РЅРЅСЏ С„Р°Р№Р»Сѓ data -----
-' РљРѕР»РѕРЅРєРё data: 1 OWN_ID, 2 Р’Р»Р°СЃРЅРёРє, 3 РњРµРЅРµРґР¶РµСЂ РєР»С–С”РЅС‚Р°, 4 РЎС„РµСЂР° РґС–СЏР»СЊРЅРѕСЃС‚С–,
-' 5 РљРѕРјРїР»РµРєСЃ, 6 РџРѕС‚РµРЅС†С–Р°Р», 7 РљР°С‚РµРіРѕСЂС–СЏРўР“, 8 2025 РІСЃСЊРѕРіРѕ, 9 2026 С„С–Р»СЊС‚СЂ,
-' 10 Р¦С–Р»СЊ С„С–Р»СЊС‚СЂ, 11 1РєРІ 2026, 12 2РєРІ 2026, 13 3РєРІ 2026, 14 4РєРІ 2026
+' ----- Налаштування файлу data -----
+' Колонки data: 1 OWN_ID, 2 Власник, 3 Менеджер клієнта, 4 Сфера діяльності,
+' 5 Комплекс, 6 Потенціал, 7 КатегоріяТГ, 8 2025 всього, 9 2026 фільтр,
+' 10 Ціль фільтр, 11 1кв 2026, 12 2кв 2026, 13 3кв 2026, 14 4кв 2026
 Private Const D_ID As Long = 1
 Private Const D_MGR As Long = 3
 Private Const D_KOMPL As Long = 5
 Private Const D_KAT As Long = 7
 Private Const D_COLS As Long = 14
 
-' РЇРєР° РєРѕР»РѕРЅРєР° data Р№РґРµ РІ РєРѕР»РѕРЅРєРё A..L РІРєР»Р°РґРєРё Export_*:
-'   A OWN_ID, B Р’Р»Р°СЃРЅРёРє, C РЎС„РµСЂР°, D РљРѕРјРїР»РµРєСЃ, E РџРѕС‚РµРЅС†С–Р°Р», F РљР°С‚РµРіРѕСЂС–СЏРўР“,
-'   G 2025, H 1РєРІ, I 2РєРІ, J 3РєРІ, K 2026 С„С–Р»СЊС‚СЂ, L Р¦С–Р»СЊ С„С–Р»СЊС‚СЂ
+' Яка колонка data йде в колонки A..L вкладки Export_*:
+'   A OWN_ID, B Власник, C Сфера, D Комплекс, E Потенціал, F КатегоріяТГ,
+'   G 2025, H 1кв, I 2кв, J 3кв, K 2026 фільтр, L Ціль фільтр
 Private Function ExportMap() As Variant
     ExportMap = Array(1, 2, 4, 5, 6, 7, 8, 11, 12, 13, 9, 10)
 End Function
@@ -48,17 +48,17 @@ Public Sub UpdateExportSheets()
     Dim dataPath As Variant, files As Variant
 
     dataPath = Application.GetOpenFilename("Excel (*.xlsx;*.xlsm;*.xls),*.xlsx;*.xlsm;*.xls", , _
-        "РљСЂРѕРє 1 Р· 2: РѕР±РµСЂС–С‚СЊ С„Р°Р№Р» Р· РќРћР’РРњР РґР°РЅРёРјРё (data)")
+        "Крок 1 з 2: оберіть файл з НОВИМИ даними (data)")
     If VarType(dataPath) = vbBoolean Then Exit Sub
 
     files = Application.GetOpenFilename("Excel (*.xlsx;*.xlsm),*.xlsx;*.xlsm", , _
-        "РљСЂРѕРє 2 Р· 2: РѕР±РµСЂС–С‚СЊ С„Р°Р№Р»Рё РјРµРЅРµРґР¶РµСЂС–РІ (РјРѕР¶РЅР° РІСЃС– РѕРґСЂР°Р·Сѓ)", , True)
+        "Крок 2 з 2: оберіть файли менеджерів (можна всі одразу)", , True)
     If Not IsArray(files) Then Exit Sub
 
     RunUpdate CStr(dataPath), files
 End Sub
 
-' РћСЃРЅРѕРІРЅР° РїСЂРѕС†РµРґСѓСЂР° (РјРѕР¶РЅР° РІРёРєР»РёРєР°С‚Рё Р· С–РЅС€РѕРіРѕ РјР°РєСЂРѕСЃСѓ Р±РµР· РґС–Р°Р»РѕРіС–РІ)
+' Основна процедура (можна викликати з іншого макросу без діалогів)
 Public Sub RunUpdate(ByVal dataPath As String, ByVal files As Variant)
     Dim calcMode As Long, dataArr As Variant, i As Long
     Dim report As Collection, problems As Collection, status As String
@@ -93,11 +93,11 @@ Done:
     Exit Sub
 
 Fail:
-    report.Add Array("РџРћРњРР›РљРђ", Err.Description)
+    report.Add Array("ПОМИЛКА", Err.Description)
     Resume Done
 End Sub
 
-' Р§РёС‚Р°С” Р»РёСЃС‚ Export (Р°Р±Рѕ РїРµСЂС€РёР№ Р»РёСЃС‚) Р· С„Р°Р№Р»Сѓ data Сѓ РјР°СЃРёРІ
+' Читає лист Export (або перший лист) з файлу data у масив
 Private Function ReadData(ByVal path As String) As Variant
     Dim wb As Workbook, ws As Worksheet, sh As Worksheet, lastRow As Long
 
@@ -110,13 +110,13 @@ Private Function ReadData(ByVal path As String) As Variant
     lastRow = ws.Cells(ws.Rows.Count, D_ID).End(xlUp).Row
     If UCase(Trim(CStr(ws.Cells(1, D_ID).Value))) <> "OWN_ID" Then
         wb.Close False
-        Err.Raise vbObjectError + 1, , "РЈ С„Р°Р№Р»С– data РІ РєР»С–С‚РёРЅС†С– A1 РѕС‡С–РєСѓС”С‚СЊСЃСЏ Р·Р°РіРѕР»РѕРІРѕРє OWN_ID"
+        Err.Raise vbObjectError + 1, , "У файлі data в клітинці A1 очікується заголовок OWN_ID"
     End If
     ReadData = ws.Range(ws.Cells(1, 1), ws.Cells(lastRow, D_COLS)).Value
     wb.Close False
 End Function
 
-' РћРЅРѕРІР»СЋС” РѕРґРёРЅ С„Р°Р№Р» РјРµРЅРµРґР¶РµСЂР°. РџРѕРІРµСЂС‚Р°С” РєРѕСЂРѕС‚РєРёР№ СЃС‚Р°С‚СѓСЃ РґР»СЏ Р·РІС–С‚Сѓ.
+' Оновлює один файл менеджера. Повертає короткий статус для звіту.
 Private Function ProcessFile(ByVal path As String, dataArr As Variant, _
                              ByVal backupDir As String, problems As Collection) As String
     Dim wb As Workbook, ws As Worksheet, sh As Worksheet
@@ -130,7 +130,7 @@ Private Function ProcessFile(ByVal path As String, dataArr As Variant, _
 
     On Error GoTo Fail
     If IsWorkbookOpen(FileNameOf(path)) Then
-        ProcessFile = "РџР РћРџРЈР©Р•РќРћ: С„Р°Р№Р» РІС–РґРєСЂРёС‚РёР№ РІ Excel, Р·Р°РєСЂРёР№С‚Рµ Р№РѕРіРѕ"
+        ProcessFile = "ПРОПУЩЕНО: файл відкритий в Excel, закрийте його"
         Exit Function
     End If
 
@@ -145,7 +145,7 @@ Private Function ProcessFile(ByVal path As String, dataArr As Variant, _
     Next sh
     If ws Is Nothing Then
         wb.Close False
-        ProcessFile = "РџР РћРџРЈР©Р•РќРћ: РЅРµРјР°С” РІРєР»Р°РґРєРё " & EXPORT_PREFIX & "_*"
+        ProcessFile = "ПРОПУЩЕНО: немає вкладки " & EXPORT_PREFIX & "_*"
         Exit Function
     End If
 
@@ -154,12 +154,12 @@ Private Function ProcessFile(ByVal path As String, dataArr As Variant, _
     nOld = lastOld - FIRST_ROW + 1
     If nOld < 2 Then
         wb.Close False
-        ProcessFile = "РџР РћРџРЈР©Р•РќРћ: Сѓ РІРєР»Р°РґС†С– " & ws.Name & " РјРµРЅС€Рµ 2 СЂСЏРґРєС–РІ РґР°РЅРёС…"
+        ProcessFile = "ПРОПУЩЕНО: у вкладці " & ws.Name & " менше 2 рядків даних"
         Exit Function
     End If
     oldArr = ws.Range(ws.Cells(FIRST_ROW, 1), ws.Cells(lastOld, C_NOTE)).Value
 
-    ' --- РјРµРЅРµРґР¶РµСЂ, СЂС–Рє, РєРІР°СЂС‚Р°Р» Р·С– СЃС‚Р°СЂРёС… РґР°РЅРёС… ---
+    ' --- менеджер, рік, квартал зі старих даних ---
     For i = 1 To nOld
         If Len(Txt(oldArr(i, C_MGR))) > 0 Then
             mgr = Txt(oldArr(i, C_MGR))
@@ -171,11 +171,11 @@ Private Function ProcessFile(ByVal path As String, dataArr As Variant, _
     If Len(mgr) = 0 Then mgr = ManagerBySheetName(ws.Name, dataArr)
     If Len(mgr) = 0 Then
         wb.Close False
-        ProcessFile = "РџР РћРџРЈР©Р•РќРћ: РЅРµ РІРґР°Р»РѕСЃСЏ РІРёР·РЅР°С‡РёС‚Рё РјРµРЅРµРґР¶РµСЂР° (РєРѕР»РѕРЅРєР° P РїРѕСЂРѕР¶РЅСЏ)"
+        ProcessFile = "ПРОПУЩЕНО: не вдалося визначити менеджера (колонка P порожня)"
         Exit Function
     End If
 
-    ' --- СЂСЏРґРєРё С†СЊРѕРіРѕ РјРµРЅРµРґР¶РµСЂР° РІ data ---
+    ' --- рядки цього менеджера в data ---
     ReDim rowsIdx(1 To UBound(dataArr, 1))
     For r = 2 To UBound(dataArr, 1)
         If StrComp(Txt(dataArr(r, D_MGR)), mgr, vbTextCompare) = 0 And Len(Txt(dataArr(r, D_ID))) > 0 Then
@@ -185,11 +185,11 @@ Private Function ProcessFile(ByVal path As String, dataArr As Variant, _
     Next r
     If nNew < 2 Then
         wb.Close False
-        ProcessFile = "РџР РћРџРЈР©Р•РќРћ: Сѓ data РЅРµРјР°С” СЂСЏРґРєС–РІ РґР»СЏ РјРµРЅРµРґР¶РµСЂР° В«" & mgr & "В»"
+        ProcessFile = "ПРОПУЩЕНО: у data немає рядків для менеджера «" & mgr & "»"
         Exit Function
     End If
 
-    ' --- Р·Р°РїР°Рј'СЏС‚РѕРІСѓС”РјРѕ С†С–Р»С– (O) С– РїСЂРёРјС–С‚РєРё (S) ---
+    ' --- запам'ятовуємо цілі (O) і примітки (S) ---
     Set goals = CreateObject("Scripting.Dictionary")
     Set notes = CreateObject("Scripting.Dictionary")
     Set info = CreateObject("Scripting.Dictionary")
@@ -206,7 +206,7 @@ Private Function ProcessFile(ByVal path As String, dataArr As Variant, _
             Txt(oldArr(i, C_KOMPL)) & " | " & Txt(oldArr(i, C_KAT))
     Next i
 
-    ' --- РЅРѕРІС– РґР°РЅС– Сѓ РјР°СЃРёРІРё ---
+    ' --- нові дані у масиви ---
     map = ExportMap()
     ReDim arrA(1 To nNew, 1 To 12)
     ReDim arrO(1 To nNew, 1 To 1)
@@ -227,11 +227,11 @@ Private Function ProcessFile(ByVal path As String, dataArr As Variant, _
         If Not pos2.Exists(k) Then pos2.Add k, i
     Next i
 
-    ' --- СЂРѕР·РєР»Р°РґР°С”РјРѕ С†С–Р»С– С‚Р° РїСЂРёРјС–С‚РєРё РїРѕ РЅРѕРІРёС… СЂСЏРґРєР°С… ---
-    nLost = PlaceValues(goals, pos3, pos2, arrO, 1, info, problems, FileNameOf(path), "С†С–Р»СЊ")
-    PlaceValues notes, pos3, pos2, arrP, 4, info, problems, FileNameOf(path), "РїСЂРёРјС–С‚РєР°"
+    ' --- розкладаємо цілі та примітки по нових рядках ---
+    nLost = PlaceValues(goals, pos3, pos2, arrO, 1, info, problems, FileNameOf(path), "ціль")
+    PlaceValues notes, pos3, pos2, arrP, 4, info, problems, FileNameOf(path), "примітка"
 
-    ' --- РїС–РґРіР°РЅСЏС”РјРѕ РєС–Р»СЊРєС–СЃС‚СЊ СЂСЏРґРєС–РІ (С„РѕСЂРјСѓР»Рё С– РґС–Р°РїР°Р·РѕРЅРё Excel Р·СЃСѓРЅРµ СЃР°Рј) ---
+    ' --- підганяємо кількість рядків (формули і діапазони Excel зсуне сам) ---
     If nNew > nOld Then
         ws.Rows(lastOld).Resize(nNew - nOld).Insert Shift:=xlDown
     ElseIf nNew < nOld Then
@@ -239,12 +239,12 @@ Private Function ProcessFile(ByVal path As String, dataArr As Variant, _
     End If
     lastNew = FIRST_ROW + nNew - 1
 
-    ' --- Р·Р°РїРёСЃСѓС”РјРѕ Р·РЅР°С‡РµРЅРЅСЏ ---
+    ' --- записуємо значення ---
     ws.Range(ws.Cells(FIRST_ROW, 1), ws.Cells(lastNew, 12)).Value = arrA
     ws.Range(ws.Cells(FIRST_ROW, C_GOAL), ws.Cells(lastNew, C_GOAL)).Value = arrO
     ws.Range(ws.Cells(FIRST_ROW, C_MGR), ws.Cells(lastNew, C_NOTE)).Value = arrP
 
-    ' --- РїСЂРѕС‚СЏРіСѓС”РјРѕ С„РѕСЂРјСѓР»Рё (M, N, T:AE) Р· РїРµСЂС€РѕРіРѕ СЂСЏРґРєР° РЅР° РІСЃС– СЂСЏРґРєРё ---
+    ' --- протягуємо формули (M, N, T:AE) з першого рядка на всі рядки ---
     For c = 1 To C_LAST
         If ws.Cells(FIRST_ROW, c).HasFormula Then
             ws.Range(ws.Cells(FIRST_ROW + 1, c), ws.Cells(lastNew, c)).FormulaR1C1 = _
@@ -256,20 +256,20 @@ Private Function ProcessFile(ByVal path As String, dataArr As Variant, _
     wb.Save
     wb.Close False
 
-    ProcessFile = "OK: " & mgr & " | СЂСЏРґРєС–РІ Р±СѓР»Рѕ " & nOld & ", СЃС‚Р°Р»Рѕ " & nNew & _
-                  " | С†С–Р»РµР№ РїРµСЂРµРЅРµСЃРµРЅРѕ " & (goals.Count - nLost) & " Р· " & goals.Count & _
-                  IIf(nLost > 0, " (РќР• Р·РЅР°Р№РґРµРЅРѕ: " & nLost & ", РґРёРІ. РЅРёР¶С‡Рµ)", "")
+    ProcessFile = "OK: " & mgr & " | рядків було " & nOld & ", стало " & nNew & _
+                  " | цілей перенесено " & (goals.Count - nLost) & " з " & goals.Count & _
+                  IIf(nLost > 0, " (НЕ знайдено: " & nLost & ", див. нижче)", "")
     Exit Function
 
 Fail:
-    ProcessFile = "РџРћРњРР›РљРђ: " & Err.Description & " (С„Р°Р№Р» РЅРµ Р·Р±РµСЂРµР¶РµРЅРѕ, РѕСЂРёРіС–РЅР°Р» Сѓ Backup)"
+    ProcessFile = "ПОМИЛКА: " & Err.Description & " (файл не збережено, оригінал у Backup)"
     On Error Resume Next
     If Not wb Is Nothing Then wb.Close False
 End Function
 
-' РЎС‚Р°РІРёС‚СЊ Р·Р±РµСЂРµР¶РµРЅС– Р·РЅР°С‡РµРЅРЅСЏ Сѓ РЅРѕРІС– СЂСЏРґРєРё: СЃРїРѕС‡Р°С‚РєСѓ С‚РѕС‡РЅРёР№ Р·Р±С–Рі
-' (OWN_ID + РљРѕРјРїР»РµРєСЃ + РљР°С‚РµРіРѕСЂС–СЏ), С–РЅР°РєС€Рµ РїРµСЂС€РёР№ СЂСЏРґРѕРє РїР°СЂРё (OWN_ID + РљР°С‚РµРіРѕСЂС–СЏ).
-' РџРѕРІРµСЂС‚Р°С” РєС–Р»СЊРєС–СЃС‚СЊ Р·РЅР°С‡РµРЅСЊ, РґР»СЏ СЏРєРёС… СЂСЏРґРѕРє РЅРµ Р·РЅР°Р№РґРµРЅРѕ.
+' Ставить збережені значення у нові рядки: спочатку точний збіг
+' (OWN_ID + Комплекс + Категорія), інакше перший рядок пари (OWN_ID + Категорія).
+' Повертає кількість значень, для яких рядок не знайдено.
 Private Function PlaceValues(src As Object, pos3 As Object, pos2 As Object, arr() As Variant, _
                              ByVal col As Long, info As Object, problems As Collection, _
                              ByVal fileName As String, ByVal what As String) As Long
@@ -293,14 +293,14 @@ Private Function PlaceValues(src As Object, pos3 As Object, pos2 As Object, arr(
             End If
         Else
             lost = lost + 1
-            problems.Add Array(fileName, what & " РЅРµ РїРµСЂРµРЅРµСЃРµРЅРѕ (РєР»С–С”РЅС‚Р°/РєР°С‚РµРіРѕСЂС–С— РЅРµРјР°С” РІ РЅРѕРІРёС… РґР°РЅРёС…)", _
+            problems.Add Array(fileName, what & " не перенесено (клієнта/категорії немає в нових даних)", _
                                info.Item(k), src.Item(k))
         End If
     Next k
     PlaceValues = lost
 End Function
 
-' ----- РґРѕРїРѕРјС–Р¶РЅС– -----
+' ----- допоміжні -----
 Private Function Txt(ByVal v As Variant) As String
     If IsError(v) Or IsEmpty(v) Or IsNull(v) Then Exit Function
     Txt = Trim(CStr(v))
@@ -326,7 +326,7 @@ Private Sub AddValue(d As Object, ByVal k As String, ByVal v As Variant)
     End If
 End Sub
 
-' РЇРєС‰Рѕ РєРѕР»РѕРЅРєР° P РїРѕСЂРѕР¶РЅСЏ: С€СѓРєР°С”РјРѕ РјРµРЅРµРґР¶РµСЂР° Р·Р° РїСЂС–Р·РІРёС‰РµРј Р· РЅР°Р·РІРё РІРєР»Р°РґРєРё (Export_РџСЂС–Р·РІРёС‰Рµ)
+' Якщо колонка P порожня: шукаємо менеджера за прізвищем з назви вкладки (Export_Прізвище)
 Private Function ManagerBySheetName(ByVal sheetName As String, dataArr As Variant) As String
     Dim surname As String, r As Long, m As String
     surname = Trim(Mid(sheetName, Len(EXPORT_PREFIX) + 2))
@@ -362,8 +362,8 @@ Private Sub ShowReport(report As Collection, problems As Collection, ByVal backu
 
     Set wb = Workbooks.Add
     Set ws = wb.Worksheets(1)
-    ws.Name = "Р—РІС–С‚"
-    ws.Range("A1:B1").Value = Array("Р¤Р°Р№Р»", "Р РµР·СѓР»СЊС‚Р°С‚")
+    ws.Name = "Звіт"
+    ws.Range("A1:B1").Value = Array("Файл", "Результат")
     r = 2
     For i = 1 To report.Count
         ws.Cells(r, 1).Value = report(i)(0)
@@ -371,11 +371,11 @@ Private Sub ShowReport(report As Collection, problems As Collection, ByVal backu
         r = r + 1
     Next i
     r = r + 1
-    ws.Cells(r, 1).Value = "Р РµР·РµСЂРІРЅС– РєРѕРїС–С—: " & backupDir
+    ws.Cells(r, 1).Value = "Резервні копії: " & backupDir
     r = r + 2
     If problems.Count > 0 Then
         ws.Range(ws.Cells(r, 1), ws.Cells(r, 4)).Value = _
-            Array("Р¤Р°Р№Р»", "РџСЂРѕР±Р»РµРјР°", "РљР»С–С”РЅС‚ | РљРѕРјРїР»РµРєСЃ | РљР°С‚РµРіРѕСЂС–СЏ", "Р—РЅР°С‡РµРЅРЅСЏ")
+            Array("Файл", "Проблема", "Клієнт | Комплекс | Категорія", "Значення")
         For i = 1 To problems.Count
             r = r + 1
             ws.Cells(r, 1).Value = problems(i)(0)
@@ -385,6 +385,6 @@ Private Sub ShowReport(report As Collection, problems As Collection, ByVal backu
         Next i
     End If
     ws.Columns("A:D").AutoFit
-    MsgBox "Р“РѕС‚РѕРІРѕ. РћР±СЂРѕР±Р»РµРЅРѕ С„Р°Р№Р»С–РІ: " & report.Count & vbCrLf & _
-           "РџРѕРґСЂРѕР±РёС†С– вЂ” Сѓ РЅРѕРІС–Р№ РєРЅРёР·С– В«Р—РІС–С‚В».", vbInformation
+    MsgBox "Готово. Оброблено файлів: " & report.Count & vbCrLf & _
+           "Подробиці — у новій книзі «Звіт».", vbInformation
 End Sub
