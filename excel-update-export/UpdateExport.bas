@@ -133,6 +133,7 @@ Private Function ProcessFile(ByVal path As String, dataArr As Variant, _
     Dim rowsIdx() As Long, r As Long, i As Long, j As Long, c As Long, k As String
     Dim arrA() As Variant, arrO() As Variant, arrP() As Variant, map As Variant
     Dim nGoals As Long, nLost As Long
+    Dim wasProtected As Boolean, filterOff As Boolean
 
     On Error GoTo Fail
     If IsWorkbookOpen(FileNameOf(path)) Then
@@ -155,7 +156,26 @@ Private Function ProcessFile(ByVal path As String, dataArr As Variant, _
         Exit Function
     End If
 
-    If ws.FilterMode Then ws.ShowAllData
+    ' --- захист аркуша: знімаємо, якщо без пароля ---
+    If ws.ProtectContents Then
+        On Error Resume Next
+        ws.Unprotect
+        On Error GoTo Fail
+        If ws.ProtectContents Then Err.Raise vbObjectError + 2, , _
+            "вкладка " & ws.Name & " захищена паролем — зніміть захист (Рецензування -> Зняти захист аркуша)"
+        wasProtected = True
+    End If
+
+    ' --- фільтр: показуємо всі рядки, а якщо не виходить — тимчасово знімаємо автофільтр ---
+    If ws.FilterMode Then
+        On Error Resume Next
+        ws.ShowAllData
+        On Error GoTo Fail
+        If ws.FilterMode Then
+            ws.AutoFilterMode = False
+            filterOff = True
+        End If
+    End If
     totals(0) = ws.Cells(TOTAL_ROW, C_SALES25).Value
     totals(2) = ws.Cells(TOTAL_ROW, C_SALES26).Value
     lastOld = ws.Cells(ws.Rows.Count, C_ID).End(xlUp).Row
@@ -240,12 +260,9 @@ Private Function ProcessFile(ByVal path As String, dataArr As Variant, _
     PlaceValues notes, pos3, pos2, arrP, 4, info, problems, FileNameOf(path), "примітка"
 
     ' --- підганяємо кількість рядків (формули і діапазони Excel зсуне сам) ---
-    If nNew > nOld Then
-        ws.Rows(lastOld).Resize(nNew - nOld).Insert Shift:=xlDown
-    ElseIf nNew < nOld Then
-        ws.Rows(FIRST_ROW + 1).Resize(nOld - nNew).Delete Shift:=xlUp
-    End If
+    ResizeRows ws, lastOld, nOld, nNew
     lastNew = FIRST_ROW + nNew - 1
+    If filterOff Then ws.Range(ws.Cells(FIRST_ROW - 1, 1), ws.Cells(lastNew, 25)).AutoFilter
 
     ' --- записуємо значення ---
     ws.Range(ws.Cells(FIRST_ROW, 1), ws.Cells(lastNew, 12)).Value = arrA
@@ -263,6 +280,7 @@ Private Function ProcessFile(ByVal path As String, dataArr As Variant, _
     Application.Calculate
     totals(1) = ws.Cells(TOTAL_ROW, C_SALES25).Value
     totals(3) = ws.Cells(TOTAL_ROW, C_SALES26).Value
+    If wasProtected Then ws.Protect AllowFiltering:=True
     wb.Save
     wb.Close False
 
@@ -275,6 +293,51 @@ Fail:
     ProcessFile = "ПОМИЛКА: " & Err.Description & " (файл не збережено, оригінал у Backup)"
     On Error Resume Next
     If Not wb Is Nothing Then wb.Close False
+End Function
+
+' Додає/видаляє рядки всередині таблиці. Спершу цілими рядками; якщо Excel
+' не дає (об'єкти/дані внизу аркуша тощо) — лише клітинками в колонках A:AE.
+Private Sub ResizeRows(ws As Worksheet, ByVal lastOld As Long, ByVal nOld As Long, ByVal nNew As Long)
+    Dim errText As String
+    If nNew = nOld Then Exit Sub
+
+    On Error Resume Next
+    If nNew > nOld Then
+        ws.Rows(lastOld).Resize(nNew - nOld).Insert Shift:=xlDown
+    Else
+        ws.Rows(FIRST_ROW + 1).Resize(nOld - nNew).Delete Shift:=xlUp
+    End If
+    If Err.Number = 0 Then Exit Sub
+
+    errText = Err.Description
+    Err.Clear
+    If nNew > nOld Then
+        ws.Range(ws.Cells(lastOld, 1), ws.Cells(lastOld + nNew - nOld - 1, C_LAST)).Insert Shift:=xlDown
+    Else
+        ws.Range(ws.Cells(FIRST_ROW + 1, 1), ws.Cells(FIRST_ROW + nOld - nNew, C_LAST)).Delete Shift:=xlUp
+    End If
+    If Err.Number = 0 Then Exit Sub
+
+    errText = "не вдалося змінити кількість рядків (" & errText & " / " & Err.Description & "). " & _
+              DiagnoseSheet(ws)
+    On Error GoTo 0
+    Err.Raise vbObjectError + 3, , errText
+End Sub
+
+' Підказка, чому Excel може не давати вставити рядки
+Private Function DiagnoseSheet(ws As Worksheet) As String
+    Dim s As String, lastCell As Range
+    On Error Resume Next
+    If ws.ProtectContents Then s = s & "Аркуш захищено. "
+    If ws.Parent.ProtectStructure Then s = s & "Книга захищена. "
+    If ws.Shapes.Count > 0 Then s = s & "На аркуші є об'єкти/примітки: " & ws.Shapes.Count & ". "
+    Set lastCell = ws.Cells.Find("*", ws.Cells(1, 1), xlFormulas, xlPart, xlByRows, xlPrevious)
+    If Not lastCell Is Nothing Then
+        If lastCell.Row > ws.Rows.Count - 100000 Then _
+            s = s & "Є дані внизу аркуша (рядок " & lastCell.Row & ") — видаліть їх. "
+    End If
+    If Len(s) = 0 Then s = "Перевірте, чи не захищено аркуш і чи немає даних у самому низу аркуша."
+    DiagnoseSheet = s
 End Function
 
 ' Ставить збережені значення у нові рядки: спочатку точний збіг
